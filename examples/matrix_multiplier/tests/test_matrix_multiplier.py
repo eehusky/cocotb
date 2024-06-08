@@ -9,19 +9,20 @@ from random import getrandbits
 from typing import Any, Dict, List
 
 import cocotb
-from cocotb.binary import BinaryValue
+import pytest
 from cocotb.clock import Clock
 from cocotb.handle import SimHandleBase
 from cocotb.queue import Queue
-from cocotb.runner import get_runner
 from cocotb.triggers import RisingEdge
+from cocotb.types import LogicArray, Range
+from cocotb_tools.runner import get_runner
 
 NUM_SAMPLES = int(os.environ.get("NUM_SAMPLES", 3000))
 if cocotb.simulator.is_running():
-    DATA_WIDTH = int(cocotb.top.DATA_WIDTH)
-    A_ROWS = int(cocotb.top.A_ROWS)
-    B_COLUMNS = int(cocotb.top.B_COLUMNS)
-    A_COLUMNS_B_ROWS = int(cocotb.top.A_COLUMNS_B_ROWS)
+    DATA_WIDTH = int(cocotb.top.DATA_WIDTH.value)
+    A_ROWS = int(cocotb.top.A_ROWS.value)
+    B_COLUMNS = int(cocotb.top.B_COLUMNS.value)
+    A_COLUMNS_B_ROWS = int(cocotb.top.A_COLUMNS_B_ROWS.value)
 
 
 class DataValidMonitor:
@@ -59,7 +60,7 @@ class DataValidMonitor:
     async def _run(self) -> None:
         while True:
             await RisingEdge(self._clk)
-            if self._valid.value.binstr != "1":
+            if self._valid.value != "1":
                 await RisingEdge(self._valid)
                 continue
             self.values.put_nowait(self._sample())
@@ -113,23 +114,28 @@ class MatrixMultiplierTester:
         self._checker.kill()
         self._checker = None
 
-    def model(self, a_matrix: List[int], b_matrix: List[int]) -> List[int]:
+    def model(
+        self, a_matrix: List[LogicArray], b_matrix: List[LogicArray]
+    ) -> List[int]:
         """Transaction-level model of the matrix multipler as instantiated"""
-        A_ROWS = self.dut.A_ROWS.value
-        A_COLUMNS_B_ROWS = self.dut.A_COLUMNS_B_ROWS.value
-        B_COLUMNS = self.dut.B_COLUMNS.value
-        DATA_WIDTH = self.dut.DATA_WIDTH.value
+        A_ROWS = int(self.dut.A_ROWS.value)
+        A_COLUMNS_B_ROWS = int(self.dut.A_COLUMNS_B_ROWS.value)
+        B_COLUMNS = int(self.dut.B_COLUMNS.value)
+        DATA_WIDTH = int(self.dut.DATA_WIDTH.value)
         return [
-            BinaryValue(
+            LogicArray(
                 sum(
                     [
-                        a_matrix[(i * A_COLUMNS_B_ROWS) + n]
-                        * b_matrix[(n * B_COLUMNS) + j]
+                        a_matrix[(i * A_COLUMNS_B_ROWS) + n].to_unsigned()
+                        * b_matrix[(n * B_COLUMNS) + j].to_unsigned()
                         for n in range(A_COLUMNS_B_ROWS)
                     ]
                 ),
-                n_bits=(DATA_WIDTH * 2) + math.ceil(math.log2(A_COLUMNS_B_ROWS)),
-                bigEndian=False,
+                Range(
+                    (DATA_WIDTH * 2) + math.ceil(math.log2(A_COLUMNS_B_ROWS)) - 1,
+                    "downto",
+                    0,
+                ),
             )
             for i in range(A_ROWS)
             for j in range(B_COLUMNS)
@@ -145,11 +151,7 @@ class MatrixMultiplierTester:
             assert actual["C"] == expected
 
 
-@cocotb.test(
-    expect_error=IndexError
-    if cocotb.simulator.is_running() and cocotb.SIM_NAME.lower().startswith("ghdl")
-    else ()
-)
+@cocotb.test()
 async def multiply_test(dut):
     """Test multiplication of many matrices."""
 
@@ -214,6 +216,10 @@ def gen_b(num_samples=NUM_SAMPLES, func=getrandbits):
         yield create_b(func)
 
 
+@pytest.mark.skipif(
+    os.getenv("SIM", "icarus") == "ghdl",
+    reason="Skipping since GHDL doesn't support constants effectively",
+)
 def test_matrix_multiplier_runner():
     """Simulate the matrix_multiplier example using the Python runner.
 
@@ -224,24 +230,24 @@ def test_matrix_multiplier_runner():
 
     proj_path = Path(__file__).resolve().parent.parent
 
-    verilog_sources = []
-    vhdl_sources = []
     build_args = []
 
     if hdl_toplevel_lang == "verilog":
-        verilog_sources = [proj_path / "hdl" / "matrix_multiplier.sv"]
+        sources = [proj_path / "hdl" / "matrix_multiplier.sv"]
 
         if sim in ["riviera", "activehdl"]:
             build_args = ["-sv2k12"]
 
     elif hdl_toplevel_lang == "vhdl":
-        vhdl_sources = [
+        sources = [
             proj_path / "hdl" / "matrix_multiplier_pkg.vhd",
             proj_path / "hdl" / "matrix_multiplier.vhd",
         ]
 
         if sim in ["questa", "modelsim", "riviera", "activehdl"]:
             build_args = ["-2008"]
+        elif sim == "nvc":
+            build_args = ["--std=08"]
     else:
         raise ValueError(
             f"A valid value (verilog or vhdl) was not provided for TOPLEVEL_LANG={hdl_toplevel_lang}"
@@ -250,6 +256,8 @@ def test_matrix_multiplier_runner():
     extra_args = []
     if sim == "ghdl":
         extra_args = ["--std=08"]
+    elif sim == "xcelium":
+        extra_args = ["-v200x"]
 
     parameters = {
         "DATA_WIDTH": "32",
@@ -265,8 +273,7 @@ def test_matrix_multiplier_runner():
 
     runner.build(
         hdl_toplevel="matrix_multiplier",
-        verilog_sources=verilog_sources,
-        vhdl_sources=vhdl_sources,
+        sources=sources,
         build_args=build_args + extra_args,
         parameters=parameters,
         always=True,

@@ -18,7 +18,7 @@ from setuptools.command.build_ext import build_ext as _build_ext
 
 logger = logging.getLogger(__name__)
 cocotb_share_dir = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "cocotb", "share")
+    os.path.join(os.path.dirname(__file__), "src", "cocotb", "share")
 )
 _base_warns = [
     "-Wall",
@@ -83,9 +83,8 @@ def create_sxs_assembly_manifest(
         )
 
     if not dependency_only:
-        manifest_body = (
-            textwrap.dedent(
-                """\
+        manifest_body = textwrap.dedent(
+            """\
             <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
                 <assemblyIdentity name="%s" version="1.0.0.0" type="win32" processorArchitecture="%s" />
@@ -93,26 +92,21 @@ def create_sxs_assembly_manifest(
                 %s
             </assembly>
             """
-            )
-            % (
-                name,
-                architecture,
-                filename,
-                textwrap.indent("".join(dependencies), "    ").strip(),
-            )
+        ) % (
+            name,
+            architecture,
+            filename,
+            textwrap.indent("".join(dependencies), "    ").strip(),
         )
     else:
-        manifest_body = (
-            textwrap.dedent(
-                """\
+        manifest_body = textwrap.dedent(
+            """\
             <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
                 %s
             </assembly>
             """
-            )
-            % (textwrap.indent("".join(dependencies), "    ").strip())
-        )
+        ) % (textwrap.indent("".join(dependencies), "    ").strip())
 
     return manifest_body
 
@@ -156,7 +150,7 @@ def create_rc_file(rc_filename, name, filename, libraries, runtime_libraries):
 
     # Escape double quotes and put every line between double quotes for embedding into rc file
     manifest = manifest.replace('"', '""')
-    manifest = "\n".join(['"%s\\r\\n"' % x for x in manifest.splitlines()])
+    manifest = "\n".join([f'"{x}\\r\\n"' for x in manifest.splitlines()])
 
     rc_body = (
         textwrap.dedent(
@@ -182,7 +176,7 @@ def create_rc_file(rc_filename, name, filename, libraries, runtime_libraries):
 
         # Escape double quotes and put every line between double quotes for embedding into rc file
         manifest = manifest.replace('"', '""')
-        manifest = "\n".join(['"%s\\r\\n"' % x for x in manifest.splitlines()])
+        manifest = "\n".join([f'"{x}\\r\\n"' for x in manifest.splitlines()])
 
         rc_body += (
             textwrap.dedent(
@@ -237,7 +231,7 @@ class build_ext(_build_ext):
 
                 # Setuptools defaults to activate automatic manifest generation for msvc,
                 # disable it here as we manually generate it to also support mingw on windows
-                for (k, ldflags) in self.compiler._ldflags.items():
+                for k, ldflags in self.compiler._ldflags.items():
                     self.compiler._ldflags[k] = [
                         x for x in ldflags if not x.startswith("/MANIFEST")
                     ] + ["/MANIFEST:NO"]
@@ -317,7 +311,7 @@ class build_ext(_build_ext):
                     ]
                     if install_name is not None:
                         ext.extra_link_args += [
-                            "-Wl,-install_name,@rpath/%s.so" % install_name
+                            f"-Wl,-install_name,@rpath/{install_name}.so"
                         ]
 
                 if sys.platform == "linux":
@@ -329,7 +323,7 @@ class build_ext(_build_ext):
                     # /path/to/libcocotbvhpi_modelsim.so)."
                     ext.extra_link_args += ["-static-libstdc++"]
 
-                ext.extra_link_args += ["-Wl,-rpath,%s" % rpath for rpath in rpaths]
+                ext.extra_link_args += [f"-Wl,-rpath,{rpath}" for rpath in rpaths]
 
         # vpi_user.h and vhpi_user.h require that WIN32 is defined
         if os.name == "nt":
@@ -436,7 +430,8 @@ class build_ext(_build_ext):
                         "/def:" + os.path.join(def_dir, sim + ".def"),
                         "/out:" + os.path.join(def_dir, sim + ".lib"),
                         "/machine:" + ("X64" if sys.maxsize > 2**32 else "X86"),
-                    ]
+                    ],
+                    check=True,
                 )
             else:
                 subprocess.run(
@@ -446,7 +441,8 @@ class build_ext(_build_ext):
                         os.path.join(def_dir, sim + ".def"),
                         "-l",
                         os.path.join(def_dir, "lib" + sim + ".a"),
-                    ]
+                    ],
+                    check=True,
                 )
 
 
@@ -491,7 +487,6 @@ def _get_common_lib_ext(include_dirs, share_lib_dir):
     Defines common libraries.
 
     All libraries go into the same directory to enable loading without modifying the library path (e.g. LD_LIBRARY_PATH).
-    In Makefile `LIB_DIR` (s) is used to point to this directory.
     """
 
     #
@@ -625,6 +620,9 @@ def _get_vpi_lib_ext(
     libcocotbvpi_sources = [
         os.path.join(share_lib_dir, "vpi", "VpiImpl.cpp"),
         os.path.join(share_lib_dir, "vpi", "VpiCbHdl.cpp"),
+        os.path.join(share_lib_dir, "vpi", "VpiObj.cpp"),
+        os.path.join(share_lib_dir, "vpi", "VpiIterator.cpp"),
+        os.path.join(share_lib_dir, "vpi", "VpiSignal.cpp"),
     ]
     if os.name == "nt":
         libcocotbvpi_sources += [lib_name + ".rc"]
@@ -667,7 +665,6 @@ def _get_vhpi_lib_ext(
 
 
 def get_ext():
-
     cfg_vars = distutils.sysconfig.get_config_vars()
 
     if sys.platform == "darwin":
@@ -676,7 +673,7 @@ def get_ext():
     share_lib_dir = os.path.relpath(os.path.join(cocotb_share_dir, "lib"))
     include_dirs = [
         os.path.relpath(os.path.join(cocotb_share_dir, "include")),
-        os.path.relpath(os.path.join(os.path.dirname(__file__), "cocotb")),
+        os.path.relpath(os.path.join(os.path.dirname(__file__), "src", "cocotb")),
     ]
 
     ext = []
@@ -819,5 +816,15 @@ def get_ext():
             sim_define="VERILATOR",
         )
         ext.append(verilator_vpi_ext)
+
+    #
+    # NVC
+    #
+    if os.name == "posix":
+        logger.info("Compiling libraries for NVC")
+        nvc_vhpi_ext = _get_vhpi_lib_ext(
+            include_dirs=include_dirs, share_lib_dir=share_lib_dir, sim_define="NVC"
+        )
+        ext.append(nvc_vhpi_ext)
 
     return ext

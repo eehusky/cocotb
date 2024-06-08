@@ -7,8 +7,7 @@ import sys
 from pathlib import Path
 
 import pytest
-
-from cocotb.runner import get_runner
+from cocotb_tools.runner import get_runner
 
 pytestmark = pytest.mark.simulator_required
 
@@ -21,15 +20,14 @@ sys.path.insert(0, str(src_path))
 
 
 @pytest.mark.skipif(
-    os.getenv("TOPLEVEL_LANG", "vhdl") != "vhdl",
+    os.getenv("HDL_TOPLEVEL_LANG", "vhdl") != "vhdl",
     reason="Skipping test since only VHDL is supported",
 )
 @pytest.mark.skipif(
-    os.getenv("SIM", "ghdl") not in ["ghdl", "questa", "riviera", "xcelium"],
-    reason="Skipping test since only GHDL, Questa/ModelSim, Riviera and Xcelium are supported",
+    os.getenv("SIM", "ghdl") not in ["ghdl", "questa", "riviera"],
+    reason="Skipping test since only GHDL, Questa/ModelSim, and Riviera are supported",
 )
 def test_toplevel_library():
-
     vhdl_gpi_interfaces = os.getenv("VHDL_GPI_INTERFACE", None)
     gpi_interfaces = [vhdl_gpi_interfaces]
 

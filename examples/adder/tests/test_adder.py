@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 import cocotb
-from cocotb.runner import get_runner
 from cocotb.triggers import Timer
+from cocotb_tools.runner import get_runner
 
 if cocotb.simulator.is_running():
     from adder_model import adder_model
@@ -36,7 +36,6 @@ async def adder_randomised_test(dut):
     """Test for adding 2 random numbers multiple times"""
 
     for i in range(10):
-
         A = random.randint(0, 15)
         B = random.randint(0, 15)
 
@@ -47,9 +46,7 @@ async def adder_randomised_test(dut):
 
         assert dut.X.value == adder_model(
             A, B
-        ), "Randomised test failed with: {A} + {B} = {X}".format(
-            A=dut.A.value, B=dut.B.value, X=dut.X.value
-        )
+        ), f"Randomised test failed with: {dut.A.value} + {dut.B.value} = {dut.X.value}"
 
 
 def test_adder_runner():
@@ -64,25 +61,28 @@ def test_adder_runner():
     # equivalent to setting the PYTHONPATH environment variable
     sys.path.append(str(proj_path / "model"))
 
-    verilog_sources = []
-    vhdl_sources = []
-
     if hdl_toplevel_lang == "verilog":
-        verilog_sources = [proj_path / "hdl" / "adder.sv"]
+        sources = [proj_path / "hdl" / "adder.sv"]
     else:
-        vhdl_sources = [proj_path / "hdl" / "adder.vhdl"]
+        sources = [proj_path / "hdl" / "adder.vhdl"]
+
+    build_test_args = []
+    if hdl_toplevel_lang == "vhdl" and sim == "xcelium":
+        build_test_args = ["-v93"]
 
     # equivalent to setting the PYTHONPATH environment variable
     sys.path.append(str(proj_path / "tests"))
 
     runner = get_runner(sim)
     runner.build(
-        verilog_sources=verilog_sources,
-        vhdl_sources=vhdl_sources,
+        sources=sources,
         hdl_toplevel="adder",
         always=True,
+        build_args=build_test_args,
     )
-    runner.test(hdl_toplevel="adder", test_module="test_adder")
+    runner.test(
+        hdl_toplevel="adder", test_module="test_adder", test_args=build_test_args
+    )
 
 
 if __name__ == "__main__":

@@ -5,20 +5,17 @@
 import sys
 from pathlib import Path
 
-from cocotb.runner import get_runner
+from cocotb_tools.runner import get_runner
 
 
 def build_and_run_matrix_multiplier(benchmark, sim):
-
     hdl_toplevel_lang = "verilog"
-    extra_args = []
+    build_args = []
+    test_args = []
 
-    if sim == "ghdl":
-        extra_args = ["--std=08"]
+    if sim == "nvc":
+        build_args = ["--std=08"]
         hdl_toplevel_lang = "vhdl"
-
-    verilog_sources = []
-    vhdl_sources = []
 
     proj_path = (
         Path(__file__).resolve().parent.parent / "examples" / "matrix_multiplier"
@@ -27,9 +24,9 @@ def build_and_run_matrix_multiplier(benchmark, sim):
     sys.path.append(str(proj_path / "tests"))
 
     if hdl_toplevel_lang == "verilog":
-        verilog_sources = [proj_path / "hdl" / "matrix_multiplier.sv"]
+        sources = [proj_path / "hdl" / "matrix_multiplier.sv"]
     else:
-        vhdl_sources = [
+        sources = [
             proj_path / "hdl" / "matrix_multiplier_pkg.vhd",
             proj_path / "hdl" / "matrix_multiplier.vhd",
         ]
@@ -38,9 +35,8 @@ def build_and_run_matrix_multiplier(benchmark, sim):
 
     runner.build(
         hdl_toplevel="matrix_multiplier",
-        verilog_sources=verilog_sources,
-        vhdl_sources=vhdl_sources,
-        build_args=extra_args,
+        sources=sources,
+        build_args=build_args,
     )
 
     @benchmark
@@ -49,7 +45,8 @@ def build_and_run_matrix_multiplier(benchmark, sim):
             hdl_toplevel="matrix_multiplier",
             hdl_toplevel_lang=hdl_toplevel_lang,
             test_module="test_matrix_multiplier",
-            test_args=extra_args,
+            test_args=test_args,
+            seed=123456789,
         )
 
 
@@ -57,5 +54,5 @@ def test_matrix_multiplier_icarus(benchmark):
     build_and_run_matrix_multiplier(benchmark, "icarus")
 
 
-def test_matrix_multiplier_ghdl(benchmark):
-    build_and_run_matrix_multiplier(benchmark, "ghdl")
+def test_matrix_multiplier_nvc(benchmark):
+    build_and_run_matrix_multiplier(benchmark, "nvc")

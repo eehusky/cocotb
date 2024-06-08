@@ -39,20 +39,20 @@ def total_object_count():
     # Questa with VHPI
     # TODO: Why do we get massively different numbers for Questa/VHPI than for Questa/FLI or VPI?
     if SIM_NAME.startswith("modelsim") and os.environ["VHDL_GPI_INTERFACE"] == "vhpi":
-        return 66959
+        return 68127
 
     # Questa 2023.1 onwards (FLI) do not discover the following objects, which
     # are instantiated four times:
-    # - inst_generic_sp_ram.clk (<class 'cocotb.handle.ModifiableObject'>)
-    # - inst_generic_sp_ram.rst (<class 'cocotb.handle.ModifiableObject'>)
-    # - inst_generic_sp_ram.wen (<class 'cocotb.handle.ModifiableObject'>)
-    # - inst_generic_sp_ram.en (<class 'cocotb.handle.ModifiableObject'>)
+    # - inst_generic_sp_ram.clk (<class 'cocotb.handle.LogicObject'>)
+    # - inst_generic_sp_ram.rst (<class 'cocotb.handle.LogicObject'>)
+    # - inst_generic_sp_ram.wen (<class 'cocotb.handle.LogicObject'>)
+    # - inst_generic_sp_ram.en (<class 'cocotb.handle.LogicObject'>)
     if (
         SIM_NAME.startswith("modelsim")
         and QuestaVersion(SIM_VERSION) >= QuestaVersion("2023.1")
         and os.environ["VHDL_GPI_INTERFACE"] == "fli"
     ):
-        return 34569 - 4 * 4
+        return 35153 - 4 * 4
 
     if SIM_NAME.startswith(
         (
@@ -62,7 +62,7 @@ def total_object_count():
             "riviera",
         )
     ):
-        return 34569
+        return 35153
 
     # Active-HDL
     if SIM_NAME.startswith("aldec"):
@@ -86,10 +86,18 @@ async def recursive_discovery(dut):
     await Timer(100)
 
     def dump_all_the_things(parent):
+        if not isinstance(
+            parent,
+            (
+                cocotb.handle.HierarchyObjectBase,
+                cocotb.handle.IndexableValueObjectBase,
+            ),
+        ):
+            return 0
         count = 0
         for thing in parent:
             count += 1
-            tlog.debug("Found %s.%s (%s)", parent._name, thing._name, type(thing))
+            tlog.info("Found %s (%s)", thing._path, type(thing))
             count += dump_all_the_things(thing)
         return count
 
@@ -106,7 +114,7 @@ async def discovery_all(dut):
     """Discover everything on top-level."""
     dut._log.info("Iterating over top-level to discover objects")
     for thing in dut:
-        thing._log.info("Found something: %s", thing._fullname)
+        thing._log.info("Found something: %s", thing._path)
 
     dut._log.info("length of dut.inst_acs is %d", len(dut.gen_acs))
     item = dut.gen_acs[3]
@@ -119,7 +127,7 @@ async def dual_iteration(dut):
 
     async def iteration_loop():
         for thing in dut:
-            thing._log.info("Found something: %s", thing._fullname)
+            thing._log.info("Found something: %s", thing._path)
             await Timer(1)
 
     loop_one = cocotb.start_soon(iteration_loop())

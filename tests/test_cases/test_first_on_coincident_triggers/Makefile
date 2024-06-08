@@ -13,8 +13,12 @@ ifeq ($(TOPLEVEL_LANG),verilog)
 else ifeq ($(TOPLEVEL_LANG),vhdl)
     VHDL_SOURCES := $(PWD)/test.vhd
     ifneq ($(filter $(SIM),ius xcelium),)
-        SIM_ARGS += -v93
+        COMPILE_ARGS += -v93
     endif
+endif
+
+ifeq ($(shell echo $(SIM) | tr A-Z a-z),verilator)
+    COMPILE_ARGS += --timing
 endif
 
 include $(shell cocotb-config --makefiles)/Makefile.sim

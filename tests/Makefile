@@ -28,21 +28,13 @@
 # Do not fail on DeprecationWarning caused by virtualenv, which might come from
 # the site module.
 # Do not fail on DeprecationWarning caused by attrs dropping 3.6 support
-export PYTHONWARNINGS = error,ignore::DeprecationWarning:site,always::FutureWarning:cocotb.scheduler,ignore::DeprecationWarning:attr
+export PYTHONWARNINGS = error,ignore::DeprecationWarning:site,always::FutureWarning:cocotb._scheduler,ignore::DeprecationWarning:attr
 
 REGRESSIONS :=  $(shell ls test_cases/)
 
-.PHONY: $(REGRESSIONS)
-
 all: $(REGRESSIONS)
 
+.PHONY: $(REGRESSIONS)
 $(REGRESSIONS):
-	cd test_cases/$@ && $(MAKE)
-
-
-
-clean:
-	$(foreach TEST, $(REGRESSIONS), $(MAKE) -C test_cases/$(TEST) clean;)
-
-regression:
-	$(foreach TEST, $(REGRESSIONS), $(MAKE) -C test_cases/$(TEST) regression;)
+	@echo Running regression suite $@
+	@cd test_cases/$@ && $(MAKE); ret=$$?; if [ $$ret -ne 0 ]; then echo "::error ::Failed regression suite $@"; fi; exit $$ret;
