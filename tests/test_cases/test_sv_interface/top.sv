@@ -14,6 +14,4 @@ module top ();
 
 sv_if sv_if_i();
 
-sv_if sv_if_arr[3]();
-
 endmodule

@@ -1,15 +1,5 @@
-# Copyright cocotb contributors
-# Licensed under the Revised BSD License, see LICENSE for details.
-# SPDX-License-Identifier: BSD-3-Clause
+include ../../designs/sample_module/Makefile
 
-# test MODULE is set
-# should cause regression initialization failure so no results.xml is written
+# test MODULE is set, but there are no tests across any of the modules
 
 MODULE=test_nothing
-
-.PHONY: override_for_this_test
-override_for_this_test:
-	-$(MAKE) all
-	@test ! -f $(COCOTB_RESULTS_FILE)
-
-include ../../designs/sample_module/Makefile

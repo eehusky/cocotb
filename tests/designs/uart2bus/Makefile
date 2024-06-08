@@ -33,7 +33,7 @@ VERILOG_SOURCES += $(SRC_BASE)/top/verilog_toplevel.sv
 TOPLEVEL = verilog_toplevel
 
 ifeq ($(SIM),$(filter $(SIM),ius xcelium))
-    COMPILE_ARGS += -v93
+    SIM_ARGS += -v93
 endif
 
 include $(shell cocotb-config --makefiles)/Makefile.sim

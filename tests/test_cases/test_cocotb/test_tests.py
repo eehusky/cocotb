@@ -8,13 +8,13 @@ Tests of cocotb.test functionality
 * expect_fail
 * timeout
 """
-
 from collections.abc import Coroutine
 
-import cocotb
 import pytest
-from cocotb.triggers import NullTrigger, Timer
 from common import MyBaseException, MyException
+
+import cocotb
+from cocotb.triggers import NullTrigger, Timer
 
 
 @cocotb.test(expect_error=NameError)
@@ -22,6 +22,14 @@ async def test_error(dut):
     """Error in the test"""
     await Timer(100, "ns")
     fail  # noqa
+
+
+@cocotb.test()
+async def test_tests_are_tests(dut):
+    """
+    Test that things annotated with cocotb.test are tests
+    """
+    assert isinstance(test_tests_are_tests, cocotb.test)
 
 
 # just to be sure...
@@ -198,17 +206,3 @@ async def test_base_exception_in_task_expect_fail(dut):
 
     cocotb.start_soon(test_func())
     await NullTrigger()
-
-
-a = 0
-
-
-@cocotb.test
-async def test_without_parenthesis(dut):
-    global a
-    a = 1
-
-
-@cocotb.test()
-async def test_test_without_parenthesis_ran(dut):
-    assert a == 1

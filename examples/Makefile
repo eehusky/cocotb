@@ -33,12 +33,7 @@ EXAMPLES := adder/tests \
             mixed_language/tests \
 
 ifeq ($(TOPLEVEL_LANG),verilog)
-    ifeq ($(SIM),$(filter $(SIM),ius xcelium))
-        EXAMPLES += mixed_signal/tests
-    else
-        $(info Skipping example mixed_signal since only Xcelium is supported)
-    endif
-    EXAMPLES += doc_examples/quickstart
+EXAMPLES += doc_examples/quickstart
 endif
 
 .PHONY: $(EXAMPLES)

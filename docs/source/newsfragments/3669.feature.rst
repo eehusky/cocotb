@@ -1,1 +1,0 @@
-The ``results_xml`` argument to :meth:`cocotb_tools.runner.Simulator.test` can now be an absolute path.

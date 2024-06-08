@@ -4,6 +4,7 @@
 import glob
 import os
 import shutil
+import sys
 from contextlib import suppress
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -13,27 +14,25 @@ import nox
 # Sessions run by default if nox is called without further arguments.
 nox.options.sessions = ["dev_test"]
 
-test_deps = ["pytest>=6"]
-coverage_deps = ["coverage[toml]>=5.0", "pytest-cov"]
+test_deps = ["pytest"]
+coverage_deps = ["coverage", "pytest-cov"]
 # gcovr 5.1 has an issue parsing some gcov files, so pin to 5.0. See
 # https://github.com/gcovr/gcovr/issues/596
 # When using gcovr 5.0, deprecated jinja2.Markup was removed in 3.1, so an
 # Exception is raised during html report generation.
 # See https://github.com/gcovr/gcovr/pull/576
-# gcovr 5.2 would solve these issues, but has dropped Python 3.6 support.
-# TODO: Switch to the latest gcovr version once we drop Python 3.6 support.
-coverage_report_deps = ["coverage[toml]>=5.0", "jinja2<3.1", "gcovr==5.0"]
+# These issues are fixed on gcovr master branch, so next release should work.
+coverage_report_deps = ["coverage", "jinja2<3.1", "gcovr==5.0"]
 
 dev_deps = [
+    "black",
+    "isort",
     "mypy",
     "pre-commit",
     "nox",
-    "ruff",
+    "flake8",
     "clang-format",
 ]
-
-# Version of the cibuildwheel package used to build wheels.
-cibuildwheel_version = "2.17.0"
 
 #
 # Helpers for use within this file.
@@ -48,7 +47,7 @@ def simulator_support_matrix() -> List[Tuple[str, str, str]]:
     # Simulators with support for VHDL through VHPI, and Verilog through VPI.
     standard = [
         (sim, toplevel_lang, gpi_interface)
-        for sim in ("activehdl", "riviera", "xcelium")
+        for sim in ("activehdl", "rivierapro", "xcelium")
         for toplevel_lang in ("verilog", "vhdl")
         for gpi_interface in ("vpi", "vhpi")
         if (toplevel_lang, gpi_interface) in (("verilog", "vpi"), ("vhdl", "vhpi"))
@@ -59,7 +58,6 @@ def simulator_support_matrix() -> List[Tuple[str, str, str]]:
         ("cvc", "verilog", "vpi"),
         ("ghdl", "vhdl", "vpi"),
         ("icarus", "verilog", "vpi"),
-        ("nvc", "vhdl", "vhpi"),
         ("questa", "verilog", "vpi"),
         ("questa", "vhdl", "fli"),
         ("questa", "vhdl", "vhpi"),
@@ -96,37 +94,16 @@ def stringify_dict(d: Dict[str, str]) -> str:
     return ", ".join(f"{k}={v}" for k, v in d.items())
 
 
-def configure_env_for_dev_test(session: nox.Session) -> None:
-    """Set environment variables for a development test.
+def configure_env_for_dev_build(session: nox.session) -> None:
+    """Set environment variables for a development build.
 
     - Enable coverage collection.
-    """
-    session.env["COCOTB_LIBRARY_COVERAGE"] = "1"
-
-
-def build_cocotb_for_dev_test(session: nox.Session, *, editable: bool) -> None:
-    """Build local cocotb for a development test.
-
     - Build with more aggressive error checking.
     """
-
-    env = session.env.copy()
-    env["CFLAGS"] = " ".join(
-        [
-            "-Werror",
-            "-Wno-deprecated-declarations",
-            "-Wsuggest-override",
-            "-g",
-            "--coverage",
-        ]
-    )
-    env["CXXFLAGS"] = "-Werror"
-    env["LDFLAGS"] = "--coverage"
-
-    if editable:
-        session.run("pip", "install", "-e", ".", env=env)
-    else:
-        session.run("pip", "install", ".", env=env)
+    session.env["CFLAGS"] = "-Werror -Wno-deprecated-declarations -g --coverage"
+    session.env["COCOTB_LIBRARY_COVERAGE"] = "1"
+    session.env["CXXFLAGS"] = "-Werror"
+    session.env["LDFLAGS"] = "--coverage"
 
 
 #
@@ -162,7 +139,7 @@ def dev_test_sim(
 ) -> None:
     """Test a development version of cocotb against a simulator."""
 
-    configure_env_for_dev_test(session)
+    configure_env_for_dev_build(session)
 
     session.run("pip", "install", *test_deps, *coverage_deps)
 
@@ -174,7 +151,7 @@ def dev_test_sim(
     # editable builds are done in a directory in /tmp, which is removed after
     # the build completes, taking all gcno files with them, as well as the path
     # to place the gcda files.
-    build_cocotb_for_dev_test(session, editable=False)
+    session.run("pip", "install", ".")
 
     env = env_vars_for_test(sim, toplevel_lang, gpi_interface)
     config_str = stringify_dict(env)
@@ -188,7 +165,7 @@ def dev_test_sim(
         coverage_file.unlink()
 
     session.log(f"Running 'make test' against a simulator {config_str}")
-    session.run("make", "-k", "test", external=True, env=env)
+    session.run("make", "clean", "test", external=True, env=env)
 
     session.log(f"Running simulator-specific tests against a simulator {config_str}")
     session.run(
@@ -238,10 +215,10 @@ def dev_test_sim(
 def dev_test_nosim(session: nox.Session) -> None:
     """Run the simulator-agnostic tests against a cocotb development version."""
 
-    configure_env_for_dev_test(session)
+    configure_env_for_dev_build(session)
 
     session.run("pip", "install", *test_deps, *coverage_deps)
-    build_cocotb_for_dev_test(session, editable=False)
+    session.run("pip", "install", ".")
 
     # Remove a potentially existing coverage file from a previous run for the
     # same test configuration. Use a filename *not* starting with `.coverage.`,
@@ -387,16 +364,31 @@ def release_build_bdist(session: nox.Session) -> None:
     """Build a binary distribution (wheels) on the current operating system."""
 
     # Pin a version to ensure reproducible builds.
-    session.run("pip", "install", f"cibuildwheel=={cibuildwheel_version}")
+    session.run("pip", "install", "cibuildwheel==2.15.0")
+
+    # cibuildwheel only auto-detects the platform if it runs on a CI server.
+    # Do the auto-detect manually to enable local runs.
+    if sys.platform.startswith("linux"):
+        platform = "linux"
+    elif sys.platform == "darwin":
+        platform = "macos"
+    elif sys.platform == "win32":
+        platform = "windows"
+    else:
+        session.error(f"Unknown platform: {sys.platform!r}")
 
     session.log("Building binary distribution (wheels)")
     session.run(
         "cibuildwheel",
+        "--platform",
+        platform,
         "--output-dir",
         dist_dir,
     )
 
-    session.log(f"Binary distribution in release mode built into {dist_dir!r}")
+    session.log(
+        f"Binary distribution in release mode for {platform!r} built into {dist_dir!r}"
+    )
 
 
 @nox.session
@@ -487,7 +479,7 @@ def release_test_sim(
     config_str = stringify_dict(env)
 
     session.log(f"Running tests against a simulator: {config_str}")
-    session.run("make", "-k", "test", external=True, env=env)
+    session.run("make", "clean", "test", external=True, env=env)
 
     session.log(f"Running simulator-specific tests against a simulator {config_str}")
     session.run(
@@ -518,57 +510,28 @@ def release_test_nosim(session: nox.Session) -> None:
     session.log("All tests passed!")
 
 
-def create_env_for_docs_build(session: nox.Session) -> None:
-    session.run(
-        "pip", "install", "docs/_vendor/domaintools"
-    )  # not done in requirements.txt due to the way relative paths are handled in that file (gh-pypa/pip#8765)
-    session.run("pip", "install", "-r", "docs/requirements.txt")
-
-
 @nox.session
 def docs(session: nox.Session) -> None:
     """invoke sphinx-build to build the HTML docs"""
-    create_env_for_docs_build(session)
-    session.run("pip", "install", ".")
+    session.run("pip", "install", "-r", "documentation/requirements.txt")
+    session.run("pip", "install", "-e", ".")
     outdir = session.cache_dir / "docs_out"
-    session.run("sphinx-build", "./docs/source", str(outdir), "--color", "-b", "html")
+    session.run(
+        "sphinx-build", "./documentation/source", str(outdir), "--color", "-b", "html"
+    )
     index = (outdir / "index.html").resolve().as_uri()
     session.log(f"Documentation is available at {index}")
 
 
 @nox.session
-def docs_preview(session: nox.Session) -> None:
-    """Build a live preview of the documentation"""
-    create_env_for_docs_build(session)
-    # Editable install allows editing cocotb source and seing it updated in the live preview
-    session.run("pip", "install", "-e", ".")
-    session.run("pip", "install", "sphinx-autobuild")
-    outdir = session.cache_dir / "docs_out"
-    session.run(
-        "sphinx-autobuild",
-        # Ignore directories which cause a rebuild loop.
-        "--ignore",
-        "*/source/master-notes.rst",
-        "--ignore",
-        "*/doxygen/*",
-        # Also watch the cocotb source directory to rebuild the API docs on
-        # changes to cocotb code.
-        "--watch",
-        "src/cocotb",
-        "./docs/source",
-        str(outdir),
-    )
-
-
-@nox.session
 def docs_linkcheck(session: nox.Session) -> None:
     """invoke sphinx-build to linkcheck the docs"""
-    create_env_for_docs_build(session)
-    session.run("pip", "install", ".")
+    session.run("pip", "install", "-r", "documentation/requirements.txt")
+    session.run("pip", "install", "-e", ".")
     outdir = session.cache_dir / "docs_out"
     session.run(
         "sphinx-build",
-        "./docs/source",
+        "./documentation/source",
         str(outdir),
         "--color",
         "-b",
@@ -579,12 +542,12 @@ def docs_linkcheck(session: nox.Session) -> None:
 @nox.session
 def docs_spelling(session: nox.Session) -> None:
     """invoke sphinx-build to spellcheck the docs"""
-    create_env_for_docs_build(session)
-    session.run("pip", "install", ".")
+    session.run("pip", "install", "-r", "documentation/requirements.txt")
+    session.run("pip", "install", "-e", ".")
     outdir = session.cache_dir / "docs_out"
     session.run(
         "sphinx-build",
-        "./docs/source",
+        "./documentation/source",
         str(outdir),
         "--color",
         "-b",
@@ -596,12 +559,11 @@ def docs_spelling(session: nox.Session) -> None:
 def dev(session: nox.Session) -> None:
     """Build a development environment and optionally run a command given as extra args"""
 
-    configure_env_for_dev_test(session)
-    create_env_for_docs_build(session)
+    configure_env_for_dev_build(session)
 
     session.run(
         "pip", "install", *test_deps, *dev_deps, *coverage_deps, *coverage_report_deps
     )
-    build_cocotb_for_dev_test(session, editable=True)
+    session.run("pip", "install", "-e", ".")
     if session.posargs:
         session.run(*session.posargs, external=True)

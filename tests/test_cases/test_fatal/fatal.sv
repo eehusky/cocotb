@@ -7,9 +7,7 @@
 
 `timescale 1 ps / 1 ps
 
-module fatal (
-    input clk
-);
+module fatal;
 
 initial begin
     #10 $fatal(1, "This is a fatal message that finishes the test");

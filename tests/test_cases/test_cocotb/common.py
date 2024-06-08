@@ -4,7 +4,6 @@
 """
 Common utilities shared by many tests in this directory
 """
-
 import re
 import traceback
 
@@ -19,13 +18,15 @@ async def _check_traceback(running_coro, exc_type, pattern, *match_args):
 
     assert re.match(pattern, tb_text, *match_args), (
         "Traceback didn't match - got:\n\n"
-        f"{tb_text}\n"
+        "{}\n"
         "which did not match the pattern:\n\n"
-        f"{pattern}"
-    )
+        "{}"
+    ).format(tb_text, pattern)
 
 
-class MyException(Exception): ...
+class MyException(Exception):
+    ...
 
 
-class MyBaseException(BaseException): ...
+class MyBaseException(BaseException):
+    ...

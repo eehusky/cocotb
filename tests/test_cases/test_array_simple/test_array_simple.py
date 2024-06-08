@@ -2,18 +2,14 @@
 # Licensed under the Revised BSD License, see LICENSE for details.
 # SPDX-License-Identifier: BSD-3-Clause
 """Test getting and setting values of arrays"""
-
 import contextlib
 import logging
-import os
 
 import cocotb
-from cocotb._sim_versions import RivieraVersion
 from cocotb.clock import Clock
 from cocotb.triggers import Timer
 
 tlog = logging.getLogger("cocotb.test")
-LANGUAGE = os.environ["TOPLEVEL_LANG"].lower().strip()
 
 
 def _check_value(tlog, hdl, expected):
@@ -45,12 +41,9 @@ async def test_1dim_array_handles(dut):
 
 # GHDL unable to put values on nested array types (gh-2588)
 # iverilog flattens multi-dimensional unpacked arrays (gh-2595)
-# Verilator doesn't support multi-dimensional unpacked arrays (gh-3611)
 @cocotb.test(
     expect_error=Exception
     if cocotb.SIM_NAME.lower().startswith(("icarus", "ghdl"))
-    else AttributeError
-    if cocotb.SIM_NAME.lower().startswith("verilator")
     else ()
 )
 async def test_ndim_array_handles(dut):
@@ -94,7 +87,7 @@ async def test_1dim_array_indexes(dut):
     _check_value(tlog, dut.array_0_to_3[3], 0x00)
     _check_value(tlog, dut.array_0_to_3[1], 0x20)
 
-    # Get sub-handles through ArrayObject.__getitem__
+    # Get sub-handles through NonHierarchyIndexableObject.__getitem__
     dut.array_7_downto_4[7].value = 0xDE
     dut.array_4_to_7[4].value = 0xFC
     dut.array_3_downto_0[0].value = 0xAB
@@ -112,12 +105,9 @@ async def test_1dim_array_indexes(dut):
 
 # GHDL unable to put values on nested array types (gh-2588)
 # iverilog flattens multi-dimensional unpacked arrays (gh-2595)
-# Verilator doesn't support multi-dimensional unpacked arrays (gh-3611)
 @cocotb.test(
     expect_error=Exception
     if cocotb.SIM_NAME.lower().startswith(("icarus", "ghdl"))
-    else AttributeError
-    if cocotb.SIM_NAME.lower().startswith("verilator")
     else ()
 )
 async def test_ndim_array_indexes(dut):
@@ -135,7 +125,7 @@ async def test_ndim_array_indexes(dut):
     _check_value(tlog, dut.array_2d[1][29], 0x90)
     _check_value(tlog, dut.array_2d[1][28], 0x80)
 
-    # Get sub-handles through ArrayObject.__getitem__
+    # Get sub-handles through NonHierarchyIndexableObject.__getitem__
     dut.array_2d[1].value = [0xDE, 0xAD, 0xBE, 0xEF]
     dut.array_2d[0][31].value = 0x0F
 
@@ -149,16 +139,9 @@ async def test_ndim_array_indexes(dut):
 
 # GHDL unable to access record signals (gh-2591)
 # Icarus doesn't support structs (gh-2592)
-# Verilator doesn't support structs (gh-1275)
-# Riviera-PRO 2022.10 and newer does not discover inout_if correctly over VPI (gh-3587)
 @cocotb.test(
     expect_error=AttributeError
-    if cocotb.SIM_NAME.lower().startswith(("icarus", "ghdl", "verilator"))
-    or (
-        cocotb.SIM_NAME.lower().startswith("riviera")
-        and RivieraVersion(cocotb.SIM_VERSION) >= RivieraVersion("2022.10")
-        and LANGUAGE == "verilog"
-    )
+    if cocotb.SIM_NAME.lower().startswith(("icarus", "ghdl"))
     else ()
 )
 async def test_struct(dut):

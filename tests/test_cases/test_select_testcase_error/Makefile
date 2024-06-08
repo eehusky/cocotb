@@ -1,17 +1,11 @@
-# Copyright cocotb contributors
-# Licensed under the Revised BSD License, see LICENSE for details.
-# SPDX-License-Identifier: BSD-3-Clause
-
-# This module exists, but...
-MODULE := x_tests
-# ...this test does not exist
-TESTCASE := y_test
-
-# TESTCASE filtering out all tests results in a warning
+# detecting an expected failure has to happen here, as the python code is invalid
+.PHONY: override_for_this_test
+override_for_this_test:
+	if $(MAKE) all; then echo "Expected this to fail"; false; else echo "Failed as expected"; fi
 
 include ../../designs/sample_module/Makefile
 
-# override PYTHONWARNINGS to prevent DeprecationWarning causing an error with use of TESTCASE
-ifdef PYTHONWARNINGS
-override PYTHONWARNINGS = error,ignore::DeprecationWarning:site,always::FutureWarning:cocotb._scheduler,ignore::DeprecationWarning:attr,ignore::DeprecationWarning:cocotb
-endif
+# This module exists, but...
+MODULE := x_tests
+# ...this test does not exist, so an error should be raised
+TESTCASE := y_test

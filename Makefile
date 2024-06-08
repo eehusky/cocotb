@@ -40,20 +40,20 @@ clean:
 
 .PHONY: do_tests
 do_tests::
-	$(MAKE) -C tests
+	$(MAKE) -k -C tests
 do_tests::
-	$(MAKE) -C examples
+	$(MAKE) -k -C examples
 
 # For Jenkins we use the exit code to detect compile errors or catastrophic
 # failures and the XML to track test results
 .PHONY: jenkins
 jenkins: do_tests
-	python -m cocotb_tools.combine_results --suppress_rc --testsuites_name=cocotb_regression
+	./bin/combine_results.py --suppress_rc --testsuites_name=cocotb_regression
 
 # By default want the exit code to indicate the test results
 .PHONY: test
 test:
-	$(MAKE) do_tests; ret=$$?; python -m cocotb_tools.combine_results && exit $$ret
+	$(MAKE) do_tests; ret=$$?; ./bin/combine_results.py && exit $$ret
 
 COCOTB_MAKEFILES_DIR = $(realpath $(shell cocotb-config --makefiles))
 AVAILABLE_SIMULATORS = $(patsubst .%,%,$(suffix $(wildcard $(COCOTB_MAKEFILES_DIR)/simulators/Makefile.*)))

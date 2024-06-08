@@ -4,17 +4,9 @@ TOPLEVEL_LANG ?= verilog
 TOPLEVEL ?= tb_rescap
 
 ifeq ($(TOPLEVEL),tb_rescap)
-    ifdef CI
-        MODULE ?= test_rescap_minimalist
-    else
-        MODULE ?= test_rescap_minimalist,test_rescap
-    endif
+    MODULE ?= test_rescap,test_rescap_minimalist
 else ifeq ($(TOPLEVEL),tb_regulator)
-    ifdef CI
-        MODULE ?= test_regulator_trim
-    else
-        MODULE ?= test_regulator_trim,test_regulator_plot
-    endif
+    MODULE ?= test_regulator_plot,test_regulator_trim
 else
     $(error Given TOPLEVEL '$(TOPLEVEL)' not supported)
 endif

@@ -13,6 +13,7 @@ MODULE := "\
 	test_concurrency_primitives,\
 	test_tests,\
 	test_testfactory,\
+	test_generator_coroutines,\
 	test_timing_triggers,\
 	test_scheduler,\
 	test_clock,\
@@ -24,8 +25,9 @@ MODULE := "\
 	pytest_assertion_rewriting,\
 	test_queues,\
 	test_utils,\
-	test_start_soon,\
+	test_fork,\
 	"
 
-# test_timing_triggers.py requires a 1ps time precision.
-COCOTB_HDL_TIMEPRECISION := 1ps
+ifeq ($(SIM),questa)
+	SIM_ARGS := "-t ps"
+endif

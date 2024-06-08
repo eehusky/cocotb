@@ -7,11 +7,9 @@ from pathlib import Path
 
 import cocotb
 from cocotb.clock import Clock
+from cocotb.runner import get_runner
 from cocotb.triggers import RisingEdge
 from cocotb.types import LogicArray
-from cocotb_tools.runner import get_runner
-
-LANGUAGE = os.environ["TOPLEVEL_LANG"].lower().strip()
 
 
 @cocotb.test()
@@ -19,16 +17,7 @@ async def dff_simple_test(dut):
     """Test that d propagates to q"""
 
     # Assert initial output is unknown
-    # verilator does not support 4-state signals
-    # see https://veripool.org/guide/latest/languages.html#unknown-states
-    initial = (
-        LogicArray(0)
-        if cocotb.SIM_NAME.lower().startswith("verilator")
-        else (
-            LogicArray("U") if LANGUAGE.lower().startswith("vhdl") else LogicArray("X")
-        )
-    )
-    assert LogicArray(dut.q.value) == initial
+    assert LogicArray(dut.q.value) == LogicArray("X")
     # Set initial input value to prevent it from floating
     dut.d.value = 0
 
@@ -52,19 +41,24 @@ async def dff_simple_test(dut):
 
 
 def test_simple_dff_runner():
+
     hdl_toplevel_lang = os.getenv("HDL_TOPLEVEL_LANG", "verilog")
     sim = os.getenv("SIM", "icarus")
 
     proj_path = Path(__file__).resolve().parent
 
+    verilog_sources = []
+    vhdl_sources = []
+
     if hdl_toplevel_lang == "verilog":
-        sources = [proj_path / "dff.sv"]
+        verilog_sources = [proj_path / "dff.sv"]
     else:
-        sources = [proj_path / "dff.vhdl"]
+        vhdl_sources = [proj_path / "dff.vhdl"]
 
     runner = get_runner(sim)
     runner.build(
-        sources=sources,
+        verilog_sources=verilog_sources,
+        vhdl_sources=vhdl_sources,
         hdl_toplevel="dff",
         always=True,
     )

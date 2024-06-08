@@ -5,7 +5,7 @@
 ifeq ($(TOPLEVEL_LANG),vhdl)
 
 ifneq ($(filter $(SIM),ius xcelium),)
-    COMPILE_ARGS += -v93
+    SIM_ARGS += -v93
 endif
 
 TOPLEVEL := vhdl_zerovector

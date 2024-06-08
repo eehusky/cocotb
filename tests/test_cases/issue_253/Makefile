@@ -45,19 +45,19 @@ $(COCOTB_RESULTS_FILE):
 
 notset_top_level: $(SIM_BUILD)/sim.vvp $(CUSTOM_SIM_DEPS)
 	MODULE=$(MODULE) \
-	COCOTB_TEST_FILTER=issue_253_notset TOPLEVEL= \
+	TESTCASE=issue_253_notset TOPLEVEL= \
 	vvp -M $(shell cocotb-config --lib-dir) -m $(shell cocotb-config --lib-name vpi icarus) $(SIM_BUILD)/sim.vvp $(SIM_ARGS) $(EXTRA_ARGS) $(PLUSARGS)
 	mkdir -p $@_result && mv results.xml $@_result/
 
 empty_top_level: $(SIM_BUILD)/sim.vvp $(CUSTOM_SIM_DEPS)
 	MODULE=$(MODULE) \
-	COCOTB_TEST_FILTER=issue_253_empty TOPLEVEL="" \
+	TESTCASE=issue_253_empty TOPLEVEL="" \
 	vvp -M $(shell cocotb-config --lib-dir) -m $(shell cocotb-config --lib-name vpi icarus) $(SIM_BUILD)/sim.vvp $(SIM_ARGS) $(EXTRA_ARGS) $(PLUSARGS)
 	mkdir -p $@_result && mv results.xml $@_result/
 
 no_top_level: $(SIM_BUILD)/sim.vvp $(CUSTOM_SIM_DEPS)
 	MODULE=$(MODULE) \
-	COCOTB_TEST_FILTER=issue_253_none \
+	TESTCASE=issue_253_none \
 	vvp -M $(shell cocotb-config --lib-dir) -m $(shell cocotb-config --lib-name vpi icarus) $(SIM_BUILD)/sim.vvp $(SIM_ARGS) $(EXTRA_ARGS) $(PLUSARGS)
 	mkdir -p $@_result && mv results.xml $@_result/
 

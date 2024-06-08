@@ -26,14 +26,14 @@
 import logging
 
 import cocotb
-from cocotb.handle import HierarchyObject, LogicObject
+from cocotb.handle import HierarchyObject, ModifiableObject
 
 
 @cocotb.test()
 async def port_not_hierarchy(dut):
     """
     Test for issue raised by Luke - iteration causes a toplevel port type to
-    change from LogicObject to HierarchyObject
+    change from ModifiableObject to HierarchyObject
     """
     fails = 0
     tlog = logging.getLogger("cocotb.test")
@@ -41,16 +41,18 @@ async def port_not_hierarchy(dut):
     def check_instance(obj, objtype):
         if not isinstance(obj, objtype):
             tlog.error(
-                f"Expected {obj._path} to be of type {objtype.__name__} but got {type(obj).__name__}"
+                "Expected {} to be of type {} but got {}".format(
+                    obj._fullname, objtype.__name__, type(obj).__name__
+                )
             )
             return 1
-        tlog.info(f"{obj._path} is {type(obj).__name__}")
+        tlog.info("{} is {}".format(obj._fullname, type(obj).__name__))
         return 0
 
-    fails += check_instance(dut.clk, LogicObject)
+    fails += check_instance(dut.clk, ModifiableObject)
     fails += check_instance(dut.i_verilog, HierarchyObject)
-    fails += check_instance(dut.i_verilog.clock, LogicObject)
-    fails += check_instance(dut.i_verilog.tx_data, LogicObject)
+    fails += check_instance(dut.i_verilog.clock, ModifiableObject)
+    fails += check_instance(dut.i_verilog.tx_data, ModifiableObject)
 
     for _ in dut:
         pass
@@ -58,9 +60,9 @@ async def port_not_hierarchy(dut):
     for _ in dut.i_verilog:
         pass
 
-    fails += check_instance(dut.clk, LogicObject)
+    fails += check_instance(dut.clk, ModifiableObject)
     fails += check_instance(dut.i_verilog, HierarchyObject)
-    fails += check_instance(dut.i_verilog.clock, LogicObject)
-    fails += check_instance(dut.i_verilog.tx_data, LogicObject)
+    fails += check_instance(dut.i_verilog.clock, ModifiableObject)
+    fails += check_instance(dut.i_verilog.tx_data, ModifiableObject)
 
     assert fails == 0

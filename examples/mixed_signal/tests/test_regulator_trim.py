@@ -36,7 +36,7 @@ class Regulator_TB:
         )  # waiting time needed for the analog values to be updated
         self.tb_hdl._log.debug(
             "trim value={}: {}={:.4} V".format(
-                self.tb_hdl.trim_val.value,
+                self.tb_hdl.trim_val.value.signed_integer,
                 self.analog_probe.node_to_probe.value.decode("ascii"),
                 self.analog_probe.voltage.value,
             )
@@ -72,12 +72,16 @@ class Regulator_TB:
         volt_max = await self.get_voltage(probed_node)
         if target_volt > volt_max:
             self.tb_hdl._log.debug(
-                f"target_volt={target_volt} > volt_max={volt_max}, returning minimum trim value {trim_val_max}"
+                "target_volt={} > volt_max={}, returning minimum trim value {}".format(
+                    target_volt, volt_max, trim_val_max
+                )
             )
             return trim_val_max
         if target_volt < volt_min:
             self.tb_hdl._log.debug(
-                f"target_volt={target_volt} < volt_min={volt_min}, returning maximum trim value {trim_val_min}"
+                "target_volt={} < volt_min={}, returning maximum trim value {}".format(
+                    target_volt, volt_min, trim_val_min
+                )
             )
             return trim_val_min
         # do the calculation:
@@ -100,7 +104,7 @@ async def run_test(tb_hdl):
     # show automatic trimming
     target_volt = 3.013
     tb_py.tb_hdl._log.info(
-        f"Running trimming algorithm for target voltage {target_volt:.4} V"
+        "Running trimming algorithm for target voltage {:.4} V".format(target_volt)
     )
     best_trim_float = await tb_py.find_trim_val(
         probed_node=node, target_volt=target_volt, trim_val_node=tb_py.tb_hdl.trim_val
@@ -110,8 +114,10 @@ async def run_test(tb_hdl):
     await Timer(tb_py.settling_time_ns, units="ns")
     trimmed_volt = await tb_py.get_voltage(node)
     tb_py.tb_hdl._log.info(
-        f"Best trimming value is {best_trim_rounded} "
-        f"--> voltage is {trimmed_volt:.4} V (difference to target is {trimmed_volt - target_volt:.4} V)"
+        "Best trimming value is {} "
+        "--> voltage is {:.4} V (difference to target is {:.4} V)".format(
+            best_trim_rounded, trimmed_volt, trimmed_volt - target_volt
+        )
     )
     best_trim_rounded_exp = -1
     assert best_trim_rounded == best_trim_rounded_exp

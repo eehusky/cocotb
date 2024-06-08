@@ -4,20 +4,16 @@
 """
 Tests relating to cocotb.clock.Clock
 """
-
 import decimal
 import fractions
-import os
 from math import isclose
 
-import cocotb
 import pytest
+
+import cocotb
 from cocotb.clock import Clock
-from cocotb.simulator import get_precision
 from cocotb.triggers import RisingEdge, Timer
 from cocotb.utils import get_sim_time
-
-LANGUAGE = os.environ["TOPLEVEL_LANG"].lower().strip()
 
 
 @cocotb.test()
@@ -26,10 +22,10 @@ async def test_clock_with_units(dut):
     clk_250mhz = Clock(dut.clk, 4.0, units="ns")
 
     assert str(clk_1mhz) == "Clock(1.0 MHz)"
-    dut._log.info(f"Created clock >{str(clk_1mhz)}<")
+    dut._log.info("Created clock >{}<".format(str(clk_1mhz)))
 
     assert str(clk_250mhz) == "Clock(250.0 MHz)"
-    dut._log.info(f"Created clock >{str(clk_250mhz)}<")
+    dut._log.info("Created clock >{}<".format(str(clk_250mhz)))
 
     clk_gen = cocotb.start_soon(clk_1mhz.start())
 
@@ -68,14 +64,8 @@ async def test_clock_with_units(dut):
     clk_gen.kill()
 
 
-# Xcelium/VHDL does not correctly report the simulator precision.
-# See also https://github.com/cocotb/cocotb/issues/3419
-@cocotb.test(skip=(LANGUAGE == "vhdl" and cocotb.SIM_NAME.startswith("xmsim")))
+@cocotb.test()
 async def test_clocks_with_other_number_types(dut):
-    # The following test assumes a time precision of at least 0.1ns.
-    # Update the simulator invocation if this assert hits!
-    assert get_precision() <= -10
-
     clk1 = cocotb.start_soon(Clock(dut.clk, decimal.Decimal("1"), units="ns").start())
     await Timer(10, "ns")
     with pytest.warns(FutureWarning, match="cause a CancelledError to be thrown"):

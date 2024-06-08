@@ -4,15 +4,15 @@
 """
 Tests for concurrency primitives like First and Combine
 """
-
 import re
 from collections import deque
 from random import randint
 
+from common import _check_traceback
+
 import cocotb
 from cocotb.triggers import Combine, Event, First, Timer
 from cocotb.utils import get_sim_time
-from common import _check_traceback
 
 
 @cocotb.test()
@@ -80,6 +80,7 @@ async def test_first_does_not_kill(dut):
     """Test that `First` does not kill coroutines that did not finish first"""
     ran = False
 
+    @cocotb.coroutine  # decorating `async def` is required to use `First`
     async def coro():
         nonlocal ran
         await Timer(2, units="ns")
@@ -87,7 +88,7 @@ async def test_first_does_not_kill(dut):
 
     # Coroutine runs for 2ns, so we expect the timer to fire first
     timer = Timer(1, units="ns")
-    t = await First(timer, cocotb.start_soon(coro()))
+    t = await First(timer, coro())
     assert t is timer
     assert not ran
 
@@ -101,13 +102,14 @@ async def test_first_does_not_kill(dut):
 async def test_exceptions_first(dut):
     """Test exception propagation via cocotb.triggers.First"""
 
-    async def raise_inner():
-        await Timer(10, "ns")
+    @cocotb.coroutine  # decorating `async def` is required to use `First`
+    def raise_inner():
+        yield Timer(10, "ns")
         raise ValueError("It is soon now")
 
     async def raise_soon():
         await Timer(1, "ns")
-        await cocotb.triggers.First(cocotb.start_soon(raise_inner()))
+        await cocotb.triggers.First(raise_inner())
 
     await _check_traceback(
         raise_soon(), ValueError, r".*in raise_soon.*in raise_inner", re.DOTALL
