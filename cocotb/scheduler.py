@@ -228,6 +228,25 @@ class Scheduler:
     delta delays) then it can reasonably be expected to be scheduled during
     "normal mode" i.e. where writes are permitted.
     """
+    __slots__ = [
+        '_handle_result',
+        'log',
+        '_trigger2coros',
+        '_mode',
+        '_write_calls',
+        '_pending_coros',
+        '_pending_triggers',
+        '_pending_threads',
+        '_pending_events',
+        '_scheduling',
+        '_terminate',
+        '_test',
+        '_main_thread',
+        '_current_task',
+        '_is_reacting',
+        '_write_coro_inst',
+        '_writes_pending',
+    ]
 
     _MODE_NORMAL = 1  # noqa
     _MODE_READONLY = 2  # noqa

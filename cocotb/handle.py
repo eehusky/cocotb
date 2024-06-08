@@ -82,6 +82,20 @@ class SimHandleBase:
         "fullname": "_fullname",
         "name": "_name",
     }
+    __slots__ = [
+        '_handle',
+        '_len',
+        '_sub_handles',
+        '_invalid_sub_handles',
+        '_name',
+        '_type',
+        '_fullname',
+        '_path',
+        '_log',
+        '_log',
+        '_def_name',
+        '_def_file',
+    ]
 
     def __init__(self, handle, path):
         """
@@ -221,6 +235,7 @@ class RegionObject(SimHandleBase):
 
     Region objects don't have values, they are effectively scopes or namespaces.
     """
+    __slots__ = ['_discovered']
 
     def __init__(self, handle, path):
         SimHandleBase.__init__(self, handle, path)
@@ -300,7 +315,7 @@ class RegionObject(SimHandleBase):
 
 class HierarchyObject(RegionObject):
     """Hierarchy objects are namespace/scope objects."""
-
+    __slots__ = []
     def __get_sub_handle_by_name(self, name):
         try:
             return self._sub_handles[name]
@@ -390,7 +405,7 @@ class HierarchyObject(RegionObject):
 
 class HierarchyArrayObject(RegionObject):
     """Hierarchy Arrays are containers of Hierarchy Objects."""
-
+    __slots__ = []
     def _sub_handle_key(self, name):
         """Translate the handle name to a key to use in :any:`_sub_handles` dictionary."""
         # This is slightly hacky, but we need to extract the index from the name
@@ -464,7 +479,7 @@ class _AssignmentResult:
 
 class NonHierarchyObject(SimHandleBase):
     """Common base class for all non-hierarchy objects."""
-
+    __slots__ = []
     def __iter__(self):
         return iter(())
 
@@ -553,7 +568,7 @@ class ConstantObject(NonHierarchyObject):
     The value is cached in the class since it is fixed at elaboration
     time and won't change within a simulation.
     """
-
+    __slots__ = ['_value']
     def __init__(self, handle, path, handle_type):
         """
         Args:
@@ -622,7 +637,7 @@ class NonHierarchyIndexableObject(NonHierarchyObject):
         - **Wrong**: ``dut.some_array.value[0] = 1`` (gets value as a list then updates index 0)
         - **Correct**: ``dut.some_array[0].value = 1``
     """
-
+    __slots__ = ['_range']
     def __init__(self, handle, path):
         NonHierarchyObject.__init__(self, handle, path)
         self._range = self._handle.get_range()
@@ -710,7 +725,7 @@ class NonConstantObject(NonHierarchyIndexableObject):
     """A non-constant object"""
 
     # FIXME: what is the difference to ModifiableObject? Explain in docstring.
-
+    __slots__ = []
     def drivers(self):
         """An iterator for gathering all drivers for a signal.
 
@@ -772,7 +787,7 @@ class Release(_SetAction):
 
 class ModifiableObject(NonConstantObject):
     """Base class for simulator objects whose values can be modified."""
-
+    __slots__ = []
     def _set_value(self, value, call_sim):
         """Set the value of the underlying simulation object to *value*.
 
@@ -931,7 +946,7 @@ class ModifiableObject(NonConstantObject):
 
 class RealObject(ModifiableObject):
     """Specific object handle for Real signals and variables."""
-
+    __slots__ = []
     def _set_value(self, value, call_sim):
         """Set the value of the underlying simulation object to value.
 
@@ -968,7 +983,7 @@ class RealObject(ModifiableObject):
 
 class EnumObject(ModifiableObject):
     """Specific object handle for enumeration signals and variables."""
-
+    __slots__ = []
     def _set_value(self, value, call_sim):
         """Set the value of the underlying simulation object to *value*.
 
@@ -1010,7 +1025,7 @@ class EnumObject(ModifiableObject):
 
 class IntegerObject(ModifiableObject):
     """Specific object handle for integer and enumeration signals and variables."""
-
+    __slots__ = []
     def _set_value(self, value, call_sim):
         """Set the value of the underlying simulation object to *value*.
 
@@ -1055,7 +1070,7 @@ class IntegerObject(ModifiableObject):
 
 class StringObject(ModifiableObject):
     """Specific object handle for String variables."""
-
+    __slots__ = []
     def _set_value(self, value, call_sim):
         """Set the value of the underlying simulation object to *value*.
 
